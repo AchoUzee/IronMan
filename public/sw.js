@@ -9,12 +9,15 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // Try to cache all, but don't fail registration if some fail
+      return Promise.allSettled(
+        ASSETS.map(url => cache.add(url))
+      );
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

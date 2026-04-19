@@ -1,10 +1,13 @@
 {
+  "id": "vanguard-os-stark-tactical",
   "name": "Vanguard OS",
   "short_name": "Vanguard",
   "description": "Advanced Tactical System Interface",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#10141a",
   "theme_color": "#ffb4ac",
   "icons": [
@@ -17,8 +20,23 @@
     {
       "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuCN49RX0STcwU8t8TqHf3SkIIYprTYV1uV9lSwKL7nVoW456eoVKFGP6jTQo4sLOHF-cky1xVcXidNwlogXSOeN-gz842QBiyzl9ab1vArOO9vI7WqA0t_RilYIWrGI_8MCnVudObmeEONcfC28rEMCIQaQ74bU6IIASBI2PlwfiFtt1YLVBECSGv412rM_u3dLPrh08unZgokX9o1J-Ndvty-KeUvUvNMye5UJ892wwSQq0e85ScYdTy7lid890I3h7Tlbx2QyCg",
       "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots" : [
+    {
+      "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuCN49RX0STcwU8t8TqHf3SkIIYprTYV1uV9lSwKL7nVoW456eoVKFGP6jTQo4sLOHF-cky1xVcXidNwlogXSOeN-gz842QBiyzl9ab1vArOO9vI7WqA0t_RilYIWrGI_8MCnVudObmeEONcfC28rEMCIQaQ74bU6IIASBI2PlwfiFtt1YLVBECSGv412rM_u3dLPrh08unZgokX9o1J-Ndvty-KeUvUvNMye5UJ892wwSQq0e85ScYdTy7lid890I3h7Tlbx2QyCg",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "form_factor": "wide",
+      "label": "Vanguard OS HUD"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuCN49RX0STcwU8t8TqHf3SkIIYprTYV1uV9lSwKL7nVoW456eoVKFGP6jTQo4sLOHF-cky1xVcXidNwlogXSOeN-gz842QBiyzl9ab1vArOO9vI7WqA0t_RilYIWrGI_8MCnVudObmeEONcfC28rEMCIQaQ74bU6IIASBI2PlwfiFtt1YLVBECSGv412rM_u3dLPrh08unZgokX9o1J-Ndvty-KeUvUvNMye5UJ892wwSQq0e85ScYdTy7lid890I3h7Tlbx2QyCg",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vanguard OS Mobile"
     }
   ],
   "shortcuts": [

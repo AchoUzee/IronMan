@@ -133,23 +133,23 @@ export default function App() {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
-        setIsShortcutAdded(true);
+        setIsInstalled(true);
         showNotification("INSTALL_PROTOCOL: Vanguard OS installation initialized.", "success");
       }
       setDeferredPrompt(null);
       setShowDownloadModal(false);
     } else if (platform === 'ios') {
-      showNotification("FOLLOW_PROTOCOL: Tap 'Share' then 'Add to Home Screen'.", "info");
+      // iOS users see the instruction modal by default
+      showNotification("FOLLOW_PROTOCOL: Use the 'Add to Home Screen' action.", "info");
+    } else if (platform === 'android') {
+      showNotification("DETECTION_STATUS: Use manual Chrome 'Install App' option.", "info");
     } else {
-      setIsDownloading(true);
-      
-      // Simulate desktop deployment sequence in the modal
-      setTimeout(() => {
-        setIsDownloading(false);
-        setIsShortcutAdded(true);
-        setShowDownloadModal(false);
-        showNotification("DEPLOYMENT_COMPLETE: OS tactical interface registered.", "success");
-      }, 3000);
+      // Desktop Chrome/Edge
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+      } else {
+        showNotification("DETECTION_STATUS: Check browser address bar for install icon.", "info");
+      }
     }
   };
 
@@ -498,82 +498,91 @@ export default function App() {
                 </div>
                 
                 <div className="space-y-2">
-                  <h3 className="text-2xl font-headline font-bold uppercase tracking-tight text-on-surface">Vanguard OS v8.4</h3>
-                  <p className="text-sm font-mono text-tertiary uppercase tracking-widest">Advanced System Deployment</p>
+                  <h3 className="text-2xl font-headline font-bold uppercase tracking-tight text-on-surface">Vanguard_OS Integration</h3>
+                  <p className="text-[10px] font-mono text-tertiary uppercase tracking-widest">PWA_PROTOCOL_v8.4.2</p>
                 </div>
 
-                <div className="w-full space-y-4 py-4 border-y border-white/5">
-                  <div className="flex justify-between text-[10px] font-mono text-slate-500 uppercase">
-                    <span>File_Type</span>
-                    <span className="text-on-surface">Secure_Installer (.msi)</span>
+                <div className="w-full space-y-3 py-4 border-y border-white/5">
+                  <div className="flex justify-between text-[9px] font-mono text-slate-500 uppercase">
+                    <span>Integration_Type</span>
+                    <span className="text-tertiary font-bold">Standalone_PWA</span>
                   </div>
-                  <div className="flex justify-between text-[10px] font-mono text-slate-500 uppercase">
-                    <span>Packet_Size</span>
-                    <span className="text-on-surface">2.4 GB</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono text-slate-500 uppercase">
-                    <span>Encryption</span>
-                    <span className="text-on-surface">AES_256_RSA</span>
+                  <div className="flex justify-between text-[9px] font-mono text-slate-500 uppercase">
+                    <span>Host_Status</span>
+                    <span className={isInstalled ? "text-green-500 font-bold" : "text-primary anim-pulse"}>
+                      {isInstalled ? "INTEGRATED" : "PENDING_REGISTRATION"}
+                    </span>
                   </div>
                 </div>
 
                 <div className="w-full space-y-4 pt-2">
-                  {isDownloading ? (
-                    <div className="py-6 space-y-4">
-                       <div className="flex justify-between items-center text-[9px] font-mono text-tertiary uppercase tracking-widest">
-                          <span>Syncing_Packets...</span>
-                          <span className="animate-pulse text-on-surface">REGISTERING_SYSTEM_ID</span>
-                       </div>
-                       <div className="h-1 w-full bg-surface-container-high rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: "100%" }}
-                            transition={{ duration: 3 }}
-                            className="h-full bg-primary shadow-[0_0_10px_#ffb4ac]" 
-                          />
-                       </div>
-                    </div>
-                  ) : platform === 'ios' ? (
-                    <div className="p-5 bg-tertiary/10 rounded-lg border border-tertiary/30 space-y-4">
-                      <p className="text-[10px] font-mono text-tertiary uppercase leading-tight flex items-center gap-2">
-                        <Globe className="w-3 h-3" />
-                        iOS_INSTALL_PROTOCOL:
-                      </p>
-                      <ul className="text-[10px] font-mono text-on-surface-variant text-left space-y-3">
-                        <li className="flex gap-3">
-                           <span className="text-primary font-bold">01.</span>
-                           <span>Identify the <span className="text-on-surface font-bold inline-flex items-center gap-1 bg-white/10 px-1 rounded">Share <ChevronRight size={10}/></span> button in the bottom navigation bar of Safari.</span>
-                        </li>
-                        <li className="flex gap-3">
-                           <span className="text-primary font-bold">02.</span>
-                           <span>Scroll the menu down until you find <span className="text-on-surface font-bold underline decoration-primary underline-offset-4">Add to Home Screen</span>.</span>
-                        </li>
-                        <li className="flex gap-3">
-                           <span className="text-primary font-bold">03.</span>
-                           <span>Select <span className="text-primary font-bold uppercase">Add</span> in the top right corner to finish deployment.</span>
-                        </li>
-                      </ul>
-                      <button 
-                        onClick={() => setShowDownloadModal(false)}
-                        className="w-full py-2 bg-tertiary/20 text-tertiary font-mono text-[9px] uppercase tracking-widest rounded transition-all hover:bg-tertiary/30 mt-2"
-                      >
-                        Acknowledge
-                      </button>
-                    </div>
-                  ) : (
+                  <div className="p-4 bg-tertiary/5 rounded-lg border border-tertiary/20 space-y-4">
+                    <p className="text-[10px] font-mono text-tertiary uppercase leading-tight flex items-center gap-2">
+                      <Settings className="w-3 h-3" />
+                      {platform === 'ios' ? 'iOS_MANUAL_INSTALL' : platform === 'android' ? 'ANDROID_MANUAL_INSTALL' : 'DESKTOP_INSTALL'}_PROTOCOL:
+                    </p>
+                    
+                    <ul className="text-[10px] font-mono text-on-surface-variant text-left space-y-4">
+                      {platform === 'ios' ? (
+                        <>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">01.</span>
+                            <span>Tap the <span className="text-on-surface font-bold inline-flex items-center gap-1 bg-white/10 px-1 rounded">Share <ChevronRight size={10}/></span> icon in Safari's bottom toolbar.</span>
+                          </li>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">02.</span>
+                            <span>Scroll down to find <span className="text-on-surface font-bold border-b border-primary/50">Add to Home Screen</span>.</span>
+                          </li>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">03.</span>
+                            <span>Select <span className="text-primary font-bold uppercase">Add</span> to register the system.</span>
+                          </li>
+                        </>
+                      ) : platform === 'android' ? (
+                        <>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">01.</span>
+                            <span>{deferredPrompt ? "Tap the 'Initialize' button below to trigger auto-sync." : "Tap the Three-Dot menu (⋮) in the top right of Chrome."}</span>
+                          </li>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">02.</span>
+                            <span>Select <span className="text-on-surface font-bold border-b border-primary/50">Install App</span> or <span className="text-on-surface font-bold border-b border-primary/50">Add to Home Screen</span>.</span>
+                          </li>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">03.</span>
+                            <span>Confirm the installation to launch Vanguard OS as a native app.</span>
+                          </li>
+                        </>
+                      ) : (
+                        <>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">01.</span>
+                            <span>Identify the <span className="text-primary font-bold">Monitor+</span> icon in the browser address bar (right side).</span>
+                          </li>
+                          <li className="flex gap-3">
+                            <span className="text-primary font-bold">02.</span>
+                            <span>Click <span className="font-bold border-b border-primary/50 text-on-surface">Install</span> to deploy to your desktop system.</span>
+                          </li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+
+                  {(!isInstalled || (platform === 'android' && deferredPrompt)) && (
                     <button 
                       onClick={startDownload}
                       className="w-full py-4 metal-gradient text-on-primary font-headline font-black uppercase tracking-[0.2em] rounded-md shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
                     >
-                      <Activity className="w-4 h-4" />
-                      {platform === 'android' ? 'Install_Vanguard' : 'Begin_Download'}
+                      <Zap className="w-4 h-4" />
+                      Initialize_Integration
                     </button>
                   )}
+                  
                   <button 
                     onClick={() => setShowDownloadModal(false)}
                     className="w-full py-3 border border-outline-variant hover:bg-white/5 text-slate-500 hover:text-on-surface transition-all font-mono text-[10px] uppercase tracking-widest rounded-md"
                   >
-                    Abort_Process
+                    Close_Uplink
                   </button>
                 </div>
               </div>
