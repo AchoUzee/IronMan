@@ -18,7 +18,7 @@ import {
   Settings,
   User
 } from "lucide-react";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, useCallback } from "react";
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -38,18 +38,49 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [isShortcutAdded, setIsShortcutAdded] = useState(false);
   const [formData, setFormData] = useState({
     identifier: "",
     coordinates: "",
     message: ""
   });
 
+  const [isMathActive, setIsMathActive] = useState(false);
+  const [mathProblem, setMathProblem] = useState({ q: "", a: 0 });
+  const [userGuess, setUserGuess] = useState("");
+  const [isMathSolved, setIsMathSolved] = useState(false);
+  const [mathFeedback, setMathFeedback] = useState("");
+  const [isShortcutAdded, setIsShortcutAdded] = useState(false);
+  
+  // Local Storage Data
+  const [syncStreak, setSyncStreak] = useState(0);
+  const [bestSyncStreak, setBestSyncStreak] = useState(() => {
+    const saved = localStorage.getItem('vanguard_best_streak');
+    return saved ? parseInt(saved) : 0;
+  });
+  const [transmissionLog, setTransmissionLog] = useState<{id: string, name: string, msg: string, time: string}[]>(() => {
+    const saved = localStorage.getItem('vanguard_transmissions');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Persist Data
+  useEffect(() => {
+    localStorage.setItem('vanguard_best_streak', bestSyncStreak.toString());
+  }, [bestSyncStreak]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    console.log("Transmission Initiated:", formData);
-    // Add success feedback or reset
-    alert("TRANSMISSION_INITIATED: Data packet sent to Stark Industries cloud.");
+    const newTransmission = {
+      id: `TR-${Date.now()}`,
+      name: formData.identifier,
+      msg: formData.message,
+      time: new Date().toLocaleTimeString()
+    };
+    
+    const updatedLog = [newTransmission, ...transmissionLog].slice(0, 10);
+    setTransmissionLog(updatedLog);
+    localStorage.setItem('vanguard_transmissions', JSON.stringify(updatedLog));
+
+    alert("TRANSMISSION_INITIATED: Data packet saved to local database.");
     setFormData({ identifier: "", coordinates: "", message: "" });
   };
 
@@ -58,17 +89,46 @@ export default function App() {
     setIsMenuOpen(false);
   };
 
-  const startDownload = () => {
-    setIsDownloading(true);
-    setShowDownloadModal(false);
-    alert("VANGUARD_INITIATED: Synchronizing with satellite server... OS installer packet is being prepared.");
-    
-    // Simulate a download delay
-    setTimeout(() => {
-      setIsDownloading(false);
-      setIsShortcutAdded(true);
-      alert("DOWNLOAD_COMPLETE: Vanguard OS has been added to your system homescreen. You can now access the tactical shortcut.");
-    }, 4000);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [platform, setPlatform] = useState<'android' | 'ios' | 'other'>('other');
+
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isAndroid = /Android/.test(navigator.userAgent);
+    setPlatform(isIOS ? 'ios' : isAndroid ? 'android' : 'other');
+
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const startDownload = async () => {
+    if (platform === 'android' && deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsShortcutAdded(true);
+      }
+      setDeferredPrompt(null);
+      setShowDownloadModal(false);
+    } else if (platform === 'ios') {
+      // For iOS, we stay open to show instructions
+      alert("FOLLOW_PROTOCOL: To install Vanguard OS, tap the 'Share' icon in your browser and select 'Add to Home Screen'.");
+    } else {
+      setIsDownloading(true);
+      setShowDownloadModal(false);
+      
+      // Simulate desktop deployment
+      setTimeout(() => {
+        setIsDownloading(false);
+        setIsShortcutAdded(true);
+        alert("DEPLOYMENT_COMPLETE: Vanguard OS tactical interface has been registered to your system.");
+      }, 3000);
+    }
   };
 
   const handleViewBlueprints = () => {
@@ -76,7 +136,53 @@ export default function App() {
     if (aboutSection) {
       aboutSection.scrollIntoView({ behavior: "smooth" });
     }
-    alert("ACCESSING_FILES: Loading technical schematics for System Architecture...");
+  };
+
+  const generateMathProblem = useCallback(() => {
+    const ops = ['+', '-', '*'];
+    const op = ops[Math.floor(Math.random() * ops.length)];
+    let n1, n2, a;
+
+    if (op === '+') {
+      n1 = Math.floor(Math.random() * 50) + 1;
+      n2 = Math.floor(Math.random() * 50) + 1;
+      a = n1 + n2;
+    } else if (op === '-') {
+      n1 = Math.floor(Math.random() * 50) + 50;
+      n2 = Math.floor(Math.random() * 50) + 1;
+      a = n1 - n2;
+    } else {
+      n1 = Math.floor(Math.random() * 12) + 2;
+      n2 = Math.floor(Math.random() * 12) + 2;
+      a = n1 * n2;
+    }
+
+    setMathProblem({ q: `${n1} ${op} ${n2} = ?`, a });
+    setUserGuess("");
+    setIsMathSolved(false);
+    setMathFeedback("");
+  }, []);
+
+  const handleMathGuess = (e: FormEvent) => {
+    e.preventDefault();
+    const guessNum = parseInt(userGuess);
+    if (guessNum === mathProblem.a) {
+      setIsMathSolved(true);
+      const newStreak = syncStreak + 1;
+      setSyncStreak(newStreak);
+      if (newStreak > bestSyncStreak) setBestSyncStreak(newStreak);
+      setMathFeedback("CORE_STABILIZED: Neural Link Synchronized.");
+    } else {
+      setMathFeedback("ERROR: Power Variance Detected. Recalibrate.");
+      setSyncStreak(0);
+      setUserGuess("");
+    }
+  };
+
+  const startMathGame = () => {
+    generateMathProblem();
+    setIsMathActive(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -109,6 +215,7 @@ export default function App() {
         
         <div className="hidden md:flex items-center gap-8 font-headline text-sm tracking-widest uppercase">
           <a href="#home" className="text-tertiary font-bold border-b-2 border-tertiary pb-1">Home</a>
+          <a href="#play" className="text-on-surface-variant hover:text-primary transition-colors">Play</a>
           <a href="#about" className="text-on-surface-variant hover:text-primary transition-colors">About</a>
           <button 
             onClick={handleGetApp}
@@ -145,6 +252,13 @@ export default function App() {
                 className="text-2xl font-headline font-bold text-tertiary tracking-widest uppercase"
               >
                 Home
+              </a>
+              <a 
+                href="#play" 
+                onClick={() => setIsMenuOpen(false)}
+                className="text-2xl font-headline font-bold text-on-surface-variant hover:text-primary transition-colors tracking-widest uppercase"
+              >
+                Play
               </a>
               <a 
                 href="#about" 
@@ -185,6 +299,122 @@ export default function App() {
             </div>
             <span className="text-[9px] font-mono font-bold tracking-[0.2em] text-on-surface bg-surface/80 px-2 py-0.5 rounded border border-white/5 uppercase">Vanguard_OS</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Tactical Math Simulator Game */}
+      <AnimatePresence>
+        {isMathActive && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-surface flex flex-col items-center justify-center p-6 overflow-y-auto"
+          >
+            <div className="fixed inset-0 pointer-events-none z-0 hud-scanline opacity-20" />
+            
+            <div className="relative z-10 w-full max-w-xl flex flex-col items-center gap-10">
+              <header className="w-full flex justify-between items-center border-b border-tertiary/20 pb-6 px-4">
+                <div className="flex flex-col text-left">
+                  <h2 className="text-2xl md:text-3xl font-headline font-bold uppercase tracking-widest text-on-surface">Power_Core_Stabilizer</h2>
+                  <span className="text-[10px] font-mono text-tertiary tracking-[0.4em] uppercase">Tactical Math Calibration // MK_LXXXV</span>
+                </div>
+                <button 
+                  onClick={() => setIsMathActive(false)}
+                  className="flex items-center gap-2 px-4 py-2 border border-outline-variant hover:bg-white/5 transition-all font-mono text-[10px] uppercase tracking-widest rounded-md"
+                >
+                  <X className="w-4 h-4" />
+                  Abort
+                </button>
+              </header>
+
+              <div className="relative w-full glass-panel p-10 rounded-2xl border-2 border-tertiary/30 shadow-[0_0_50px_rgba(71,214,255,0.1)] bg-surface/40 overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 font-mono text-[8px] opacity-30">
+                  REF_PKT: 0x92f - SYNC_LOCK
+                </div>
+
+                {!isMathSolved ? (
+                  <form onSubmit={handleMathGuess} className="space-y-12 text-center">
+                    <div className="space-y-4">
+                      <span className="text-[10px] font-mono text-tertiary uppercase tracking-[0.5em] block">Calculating Variance...</span>
+                      <h3 className="text-6xl md:text-8xl font-headline font-black text-on-surface drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                        {mathProblem.q}
+                      </h3>
+                      <div className="flex justify-center gap-4 text-[10px] font-mono text-tertiary/60 uppercase tracking-widest">
+                         <span>Streak: {syncStreak}</span>
+                         <span>Record: {bestSyncStreak}</span>
+                      </div>
+                    </div>
+
+                    <div className="max-w-xs mx-auto space-y-6">
+                      <input 
+                        autoFocus
+                        type="number"
+                        value={userGuess}
+                        onChange={(e) => setUserGuess(e.target.value)}
+                        placeholder="INPUT_VALUE"
+                        className="w-full bg-surface-container-lowest border-2 border-tertiary/50 rounded-lg px-6 py-5 text-4xl text-center font-headline text-tertiary focus:ring-4 focus:ring-tertiary/20 outline-none transition-all placeholder:text-tertiary/20"
+                      />
+                      <button 
+                        type="submit"
+                        className="w-full py-5 metal-gradient text-on-primary font-headline font-black uppercase tracking-[0.3em] rounded-md shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+                      >
+                        Initialize_Sync
+                      </button>
+                    </div>
+
+                    {mathFeedback && (
+                      <motion.p 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`font-mono text-[10px] uppercase tracking-widest ${mathFeedback.includes('ERROR') ? 'text-primary' : 'text-tertiary'}`}
+                      >
+                        {mathFeedback}
+                      </motion.p>
+                    )}
+                  </form>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center space-y-8"
+                  >
+                    <div className="p-8 bg-tertiary/20 rounded-full inline-block border-4 border-tertiary/50 shadow-[0_0_60px_rgba(71,214,255,0.4)]">
+                      <Zap className="w-20 h-20 text-tertiary fill-tertiary animate-pulse" />
+                    </div>
+                    <div className="space-y-4">
+                      <h3 className="text-4xl md:text-6xl font-headline font-black text-on-surface uppercase tracking-tight">Sync_Sucessful</h3>
+                      <p className="font-mono text-xs text-tertiary uppercase tracking-[0.3em]">Neural link stabilized. Current Streak: {syncStreak}</p>
+                    </div>
+                    <div className="flex flex-col gap-4 max-w-sm mx-auto">
+                      <button 
+                        onClick={generateMathProblem}
+                        className="w-full py-4 border border-tertiary/40 hover:bg-tertiary/10 text-tertiary font-headline font-bold uppercase tracking-widest rounded-md transition-all"
+                      >
+                        Next_Cycle
+                      </button>
+                      <button 
+                        onClick={() => setIsMathActive(false)}
+                        className="w-full py-5 metal-gradient text-on-primary font-headline font-black uppercase tracking-[0.3em] rounded-md shadow-xl"
+                      >
+                        Return_to_Vanguard
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="w-full flex justify-center pb-10">
+                 <div className="flex flex-col gap-3 bg-white/5 py-4 px-10 rounded-2xl border border-tertiary/20 text-center">
+                    <span className="text-tertiary font-bold text-xs font-mono uppercase tracking-widest">Diagnostic Instructions:</span>
+                    <p className="text-on-surface-variant text-sm font-light">
+                      Calculate the missing sector value to balance the arc reactor's output. 
+                      Inaccurate data may cause thermal runaway.
+                    </p>
+                 </div>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -237,13 +467,32 @@ export default function App() {
                 </div>
 
                 <div className="w-full space-y-4 pt-2">
-                  <button 
-                    onClick={startDownload}
-                    className="w-full py-4 metal-gradient text-on-primary font-headline font-black uppercase tracking-[0.2em] rounded-md shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
-                  >
-                    <Activity className="w-4 h-4" />
-                    Begin_Download
-                  </button>
+                  {platform === 'ios' ? (
+                    <div className="p-4 bg-tertiary/10 rounded-lg border border-tertiary/30 space-y-3">
+                      <p className="text-[10px] font-mono text-tertiary uppercase leading-tight">
+                        iOS_INSTALL_PROTOCOL:
+                      </p>
+                      <ul className="text-[9px] font-mono text-on-surface-variant text-left space-y-1 list-disc pl-4">
+                        <li>Tap the <span className="text-primary">"Share"</span> button (square with arrow)</li>
+                        <li>Scroll down and tap <span className="text-primary">"Add to Home Screen"</span></li>
+                        <li>Confirm by tapping <span className="text-primary font-bold">"Add"</span></li>
+                      </ul>
+                      <button 
+                        onClick={() => setShowDownloadModal(false)}
+                        className="w-full py-2 bg-tertiary/20 text-tertiary font-mono text-[9px] uppercase tracking-widest rounded transition-all hover:bg-tertiary/30"
+                      >
+                        Acknowledge
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={startDownload}
+                      className="w-full py-4 metal-gradient text-on-primary font-headline font-black uppercase tracking-[0.2em] rounded-md shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-3"
+                    >
+                      <Activity className="w-4 h-4" />
+                      {platform === 'android' ? 'Install_Vanguard' : 'Begin_Download'}
+                    </button>
+                  )}
                   <button 
                     onClick={() => setShowDownloadModal(false)}
                     className="w-full py-3 border border-outline-variant hover:bg-white/5 text-slate-500 hover:text-on-surface transition-all font-mono text-[10px] uppercase tracking-widest rounded-md"
@@ -385,6 +634,81 @@ export default function App() {
           <div className="absolute bottom-1/4 -left-24 w-96 h-96 bg-tertiary/10 blur-[120px] rounded-full pointer-events-none" />
         </section>
 
+        {/* Tactical Play Section (Math Simulation) */}
+        <section id="play" className="py-24 bg-surface relative overflow-hidden">
+          <div className="container mx-auto px-6 md:px-12 relative z-10">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mb-16 space-y-4"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-[2px] bg-tertiary" />
+                <h2 className="text-3xl md:text-5xl font-headline font-bold uppercase tracking-tighter">
+                  Neuro_Link<span className="text-tertiary">_Play</span>
+                </h2>
+              </div>
+              <p className="text-on-surface-variant max-w-2xl font-light">
+                Engage in advanced cognitive simulations to maintain neural synchronization with the OS. 
+                Our Tactical Math Simulator challenges your real-time processing core.
+              </p>
+            </motion.div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="glass-panel p-10 rounded-2xl border border-tertiary/20 technical-bracket relative overflow-hidden group">
+                 <div className="absolute -bottom-10 -right-10 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Zap className="w-64 h-64 text-tertiary" />
+                 </div>
+                 <div className="relative z-10 space-y-6">
+                    <div className="flex items-center gap-3">
+                       <div className="p-3 bg-tertiary/10 rounded-lg">
+                          <Activity className="w-6 h-6 text-tertiary" />
+                       </div>
+                       <div>
+                          <h3 className="text-2xl font-headline font-bold uppercase">Math_Simulator</h3>
+                          <span className="text-[10px] font-mono text-tertiary/60 uppercase tracking-widest">Type: Rapid_Cognition</span>
+                       </div>
+                    </div>
+                    <p className="text-on-surface-variant font-light leading-relaxed">
+                       Stabilize the suit's power core by solving real-time variance equations. 
+                       High precision is required to prevent repulsor overload during high-altitude maneuvers.
+                    </p>
+                    <button 
+                      onClick={startMathGame}
+                      className="inline-flex items-center gap-4 px-10 py-4 metal-gradient text-on-primary font-headline font-black text-lg uppercase tracking-[0.3em] rounded-md shadow-lg hover:scale-105 transition-all active:scale-95"
+                    >
+                      <Zap className="w-5 h-5" />
+                      Play
+                    </button>
+                 </div>
+              </div>
+
+              <div className="space-y-6">
+                 {[
+                   { label: "Neural Load", val: "Critical", detail: "89 GHz" },
+                   { label: "Processing Latency", val: "Optimal", detail: "0.2ms" },
+                   { label: "Sync Efficiency", val: "Nominal", detail: "99.8%" }
+                 ].map((stat, i) => (
+                   <div key={i} className="glass-panel p-6 rounded-xl border border-white/5 flex justify-between items-center group hover:bg-white/5 transition-all">
+                      <div className="space-y-1">
+                         <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">{stat.label}</span>
+                         <h4 className="text-xl font-headline font-bold uppercase text-on-surface">{stat.val}</h4>
+                      </div>
+                      <div className="text-right">
+                         <span className="text-[10px] font-mono text-tertiary bg-tertiary/10 px-3 py-1 rounded-full">{stat.detail}</span>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Decorative Grid */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none" 
+               style={{backgroundImage: 'radial-gradient(#47d6ff 0.5px, transparent 0.5px)', backgroundSize: '30px 30px'}} />
+        </section>
+
         {/* About Section */}
         <section id="about" className="py-24 bg-surface-container-lowest relative">
           <div className="container mx-auto px-6 md:px-12">
@@ -519,6 +843,32 @@ export default function App() {
                       </div>
                     </div>
                   </form>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12 pb-8">
+                   <div className="md:col-span-2 lg:col-span-3">
+                      <h4 className="text-[10px] font-mono text-tertiary uppercase tracking-[0.4em] mb-4 flex items-center gap-2">
+                         <Database className="w-3 h-3" />
+                         Recent_Local_Transmissions
+                      </h4>
+                   </div>
+                   {transmissionLog.length === 0 ? (
+                     <div className="md:col-span-2 lg:col-span-3 text-center py-10 glass-panel border border-dashed border-white/5 rounded-xl">
+                        <span className="text-[10px] font-mono text-slate-700 uppercase tracking-widest">No local logs detected. Initiate a transmission above.</span>
+                     </div>
+                   ) : (
+                     transmissionLog.map(log => (
+                       <div key={log.id} className="p-4 bg-surface-container-low/50 rounded-lg border border-white/5 font-mono text-[9px] space-y-2 hover:bg-white/5 transition-all">
+                          <div className="flex justify-between text-tertiary font-bold">
+                             <span>{log.id}</span>
+                             <span>{log.time}</span>
+                          </div>
+                          <div className="text-on-surface opacity-80 uppercase tracking-tighter truncate">
+                             Station: {log.name}
+                          </div>
+                       </div>
+                     ))
+                   )}
                 </div>
               </motion.div>
             </div>
