@@ -4,14 +4,30 @@
   "description": "Advanced Tactical System Interface",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#10141a",
   "theme_color": "#ffb4ac",
   "icons": [
     {
       "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuCN49RX0STcwU8t8TqHf3SkIIYprTYV1uV9lSwKL7nVoW456eoVKFGP6jTQo4sLOHF-cky1xVcXidNwlogXSOeN-gz842QBiyzl9ab1vArOO9vI7WqA0t_RilYIWrGI_8MCnVudObmeEONcfC28rEMCIQaQ74bU6IIASBI2PlwfiFtt1YLVBECSGv412rM_u3dLPrh08unZgokX9o1J-Ndvty-KeUvUvNMye5UJ892wwSQq0e85ScYdTy7lid890I3h7Tlbx2QyCg",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuCN49RX0STcwU8t8TqHf3SkIIYprTYV1uV9lSwKL7nVoW456eoVKFGP6jTQo4sLOHF-cky1xVcXidNwlogXSOeN-gz842QBiyzl9ab1vArOO9vI7WqA0t_RilYIWrGI_8MCnVudObmeEONcfC28rEMCIQaQ74bU6IIASBI2PlwfiFtt1YLVBECSGv412rM_u3dLPrh08unZgokX9o1J-Ndvty-KeUvUvNMye5UJ892wwSQq0e85ScYdTy7lid890I3h7Tlbx2QyCg",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Neuro_Link_Play",
+      "short_name": "Play",
+      "description": "Calculate variance in simulation",
+      "url": "/#play",
+      "icons": [{ "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuCN49RX0STcwU8t8TqHf3SkIIYprTYV1uV9lSwKL7nVoW456eoVKFGP6jTQo4sLOHF-cky1xVcXidNwlogXSOeN-gz842QBiyzl9ab1vArOO9vI7WqA0t_RilYIWrGI_8MCnVudObmeEONcfC28rEMCIQaQ74bU6IIASBI2PlwfiFtt1YLVBECSGv412rM_u3dLPrh08unZgokX9o1J-Ndvty-KeUvUvNMye5UJ892wwSQq0e85ScYdTy7lid890I3h7Tlbx2QyCg", "sizes": "192x192" }]
     }
   ]
 }

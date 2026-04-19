@@ -50,6 +50,7 @@ export default function App() {
   const [isMathSolved, setIsMathSolved] = useState(false);
   const [mathFeedback, setMathFeedback] = useState("");
   const [isShortcutAdded, setIsShortcutAdded] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
   
   // Local Storage Data
   const [syncStreak, setSyncStreak] = useState(0);
@@ -67,6 +68,13 @@ export default function App() {
     localStorage.setItem('vanguard_best_streak', bestSyncStreak.toString());
   }, [bestSyncStreak]);
 
+  const [notification, setNotification] = useState<{msg: string, type: 'info' | 'success' | 'error'} | null>(null);
+
+  const showNotification = useCallback((msg: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 5000);
+  }, []);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const newTransmission = {
@@ -80,7 +88,7 @@ export default function App() {
     setTransmissionLog(updatedLog);
     localStorage.setItem('vanguard_transmissions', JSON.stringify(updatedLog));
 
-    alert("TRANSMISSION_INITIATED: Data packet saved to local database.");
+    showNotification("TRANSMISSION_INITIATED: Data packet saved to local database.", "success");
     setFormData({ identifier: "", coordinates: "", message: "" });
   };
 
@@ -102,9 +110,23 @@ export default function App() {
       setDeferredPrompt(e);
     };
 
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      showNotification("INSTALLATION_SUCCESS: Vanguard OS registered.", "success");
+    };
+
+    // Check if already in standalone mode
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setIsInstalled(true);
+    }
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, [showNotification]);
 
   const startDownload = async () => {
     if (platform === 'android' && deferredPrompt) {
@@ -112,21 +134,21 @@ export default function App() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setIsShortcutAdded(true);
+        showNotification("INSTALL_PROTOCOL: Vanguard OS installation initialized.", "success");
       }
       setDeferredPrompt(null);
       setShowDownloadModal(false);
     } else if (platform === 'ios') {
-      // For iOS, we stay open to show instructions
-      alert("FOLLOW_PROTOCOL: To install Vanguard OS, tap the 'Share' icon in your browser and select 'Add to Home Screen'.");
+      showNotification("FOLLOW_PROTOCOL: Tap 'Share' then 'Add to Home Screen'.", "info");
     } else {
       setIsDownloading(true);
-      setShowDownloadModal(false);
       
-      // Simulate desktop deployment
+      // Simulate desktop deployment sequence in the modal
       setTimeout(() => {
         setIsDownloading(false);
         setIsShortcutAdded(true);
-        alert("DEPLOYMENT_COMPLETE: Vanguard OS tactical interface has been registered to your system.");
+        setShowDownloadModal(false);
+        showNotification("DEPLOYMENT_COMPLETE: OS tactical interface registered.", "success");
       }, 3000);
     }
   };
@@ -187,6 +209,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-surface selection:bg-tertiary/20 selection:text-tertiary selection:backdrop-blur-sm">
+      <AnimatePresence>
+        {notification && (
+          <motion.div 
+            initial={{ opacity: 0, y: -50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -50, x: "-50%" }}
+            className="fixed top-24 left-1/2 z-[200] px-6 py-3 glass-panel border border-tertiary/40 rounded-sm shadow-[0_0_30px_rgba(71,214,255,0.2)] flex items-center gap-3 min-w-[300px]"
+          >
+            <div className={`w-2 h-2 rounded-full animate-pulse ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-primary' : 'bg-tertiary'}`} />
+            <span className="font-mono text-[10px] text-on-surface uppercase tracking-widest leading-none">
+              {notification.msg}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* HUD Scanline Overlay */}
       <div className="fixed inset-0 pointer-events-none z-50 hud-scanline opacity-10" />
 
@@ -217,14 +255,16 @@ export default function App() {
           <a href="#home" className="text-tertiary font-bold border-b-2 border-tertiary pb-1">Home</a>
           <a href="#play" className="text-on-surface-variant hover:text-primary transition-colors">Play</a>
           <a href="#about" className="text-on-surface-variant hover:text-primary transition-colors">About</a>
-          <button 
-            onClick={handleGetApp}
-            disabled={isDownloading}
-            className={`${isDownloading ? 'bg-tertiary/50 animate-pulse cursor-wait' : 'bg-primary-container hover:bg-primary-container/80 shadow-primary-container/20'} text-on-primary-container px-6 py-2 rounded-sm font-bold active:scale-95 transition-all shadow-lg overflow-hidden relative`}
-          >
-            <span className="relative z-10">{isDownloading ? 'DOWNLOADING...' : 'GET APP'}</span>
-            {isDownloading && <motion.div className="absolute inset-0 bg-white/10" initial={{ x: "-100%" }} animate={{ x: "100%" }} transition={{ repeat: Infinity, duration: 1 }} />}
-          </button>
+          {!isInstalled && (
+            <button 
+              onClick={handleGetApp}
+              disabled={isDownloading}
+              className={`${isDownloading ? 'bg-tertiary/50 animate-pulse cursor-wait' : 'bg-primary-container hover:bg-primary-container/80 shadow-primary-container/20'} text-on-primary-container px-6 py-2 rounded-sm font-bold active:scale-95 transition-all shadow-lg overflow-hidden relative`}
+            >
+              <span className="relative z-10">{isDownloading ? 'DOWNLOADING...' : 'GET APP'}</span>
+              {isDownloading && <motion.div className="absolute inset-0 bg-white/10" initial={{ x: "-100%" }} animate={{ x: "100%" }} transition={{ repeat: Infinity, duration: 1 }} />}
+            </button>
+          )}
         </div>
         
         <button 
@@ -267,19 +307,21 @@ export default function App() {
               >
                 About
               </a>
-              <button 
-                onClick={handleGetApp}
-                disabled={isDownloading}
-                className={`w-full ${isDownloading ? 'bg-tertiary/50 animate-pulse' : 'bg-primary-container shadow-primary-container/20'} py-4 rounded-sm font-bold active:scale-95 transition-all shadow-lg uppercase tracking-widest`}
-              >
-                {isDownloading ? 'Downloading...' : 'Get App'}
-              </button>
+              {!isInstalled && (
+                <button 
+                  onClick={handleGetApp}
+                  disabled={isDownloading}
+                  className={`w-full ${isDownloading ? 'bg-tertiary/50 animate-pulse' : 'bg-primary-container shadow-primary-container/20'} py-4 rounded-sm font-bold active:scale-95 transition-all shadow-lg uppercase tracking-widest`}
+                >
+                  {isDownloading ? 'Downloading...' : 'Get App'}
+                </button>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Simulated Homescreen Shortcut */}
+      {/* HUD Quick Access Widget */}
       <AnimatePresence>
         {isShortcutAdded && (
           <motion.button 
@@ -287,7 +329,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, x: 0 }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => alert("VANGUARD_LAUNCH: Initializing primary OS modules...")}
+            onClick={() => showNotification("VANGUARD_CONTROL: Fast-link to diagnostics established.", "info")}
             className="fixed bottom-24 right-8 z-50 flex flex-col items-center gap-2 group"
           >
             <div className="relative w-16 h-16 glass-panel rounded-xl flex items-center justify-center border border-primary/30 shadow-[0_0_20px_rgba(255,180,172,0.2)] group-hover:shadow-[0_0_30px_rgba(255,180,172,0.4)] transition-all">
@@ -346,7 +388,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="max-w-xs mx-auto space-y-6">
+                    <div className="max-w-xs mx-auto space-y-4">
                       <input 
                         autoFocus
                         type="number"
@@ -361,16 +403,25 @@ export default function App() {
                       >
                         Initialize_Sync
                       </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsMathActive(false)}
+                        className="w-full py-3 border border-outline-variant hover:bg-white/5 text-slate-500 hover:text-on-surface transition-all font-mono text-[10px] uppercase tracking-widest rounded-md"
+                      >
+                        Exit_Simulation
+                      </button>
                     </div>
 
                     {mathFeedback && (
-                      <motion.p 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`font-mono text-[10px] uppercase tracking-widest ${mathFeedback.includes('ERROR') ? 'text-primary' : 'text-tertiary'}`}
-                      >
-                        {mathFeedback}
-                      </motion.p>
+                      <div className="space-y-4">
+                        <motion.p 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`font-mono text-[10px] uppercase tracking-widest ${mathFeedback.includes('ERROR') ? 'text-primary' : 'text-tertiary'}`}
+                        >
+                          {mathFeedback}
+                        </motion.p>
+                      </div>
                     )}
                   </form>
                 ) : (
@@ -467,19 +518,44 @@ export default function App() {
                 </div>
 
                 <div className="w-full space-y-4 pt-2">
-                  {platform === 'ios' ? (
-                    <div className="p-4 bg-tertiary/10 rounded-lg border border-tertiary/30 space-y-3">
-                      <p className="text-[10px] font-mono text-tertiary uppercase leading-tight">
+                  {isDownloading ? (
+                    <div className="py-6 space-y-4">
+                       <div className="flex justify-between items-center text-[9px] font-mono text-tertiary uppercase tracking-widest">
+                          <span>Syncing_Packets...</span>
+                          <span className="animate-pulse text-on-surface">REGISTERING_SYSTEM_ID</span>
+                       </div>
+                       <div className="h-1 w-full bg-surface-container-high rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 3 }}
+                            className="h-full bg-primary shadow-[0_0_10px_#ffb4ac]" 
+                          />
+                       </div>
+                    </div>
+                  ) : platform === 'ios' ? (
+                    <div className="p-5 bg-tertiary/10 rounded-lg border border-tertiary/30 space-y-4">
+                      <p className="text-[10px] font-mono text-tertiary uppercase leading-tight flex items-center gap-2">
+                        <Globe className="w-3 h-3" />
                         iOS_INSTALL_PROTOCOL:
                       </p>
-                      <ul className="text-[9px] font-mono text-on-surface-variant text-left space-y-1 list-disc pl-4">
-                        <li>Tap the <span className="text-primary">"Share"</span> button (square with arrow)</li>
-                        <li>Scroll down and tap <span className="text-primary">"Add to Home Screen"</span></li>
-                        <li>Confirm by tapping <span className="text-primary font-bold">"Add"</span></li>
+                      <ul className="text-[10px] font-mono text-on-surface-variant text-left space-y-3">
+                        <li className="flex gap-3">
+                           <span className="text-primary font-bold">01.</span>
+                           <span>Identify the <span className="text-on-surface font-bold inline-flex items-center gap-1 bg-white/10 px-1 rounded">Share <ChevronRight size={10}/></span> button in the bottom navigation bar of Safari.</span>
+                        </li>
+                        <li className="flex gap-3">
+                           <span className="text-primary font-bold">02.</span>
+                           <span>Scroll the menu down until you find <span className="text-on-surface font-bold underline decoration-primary underline-offset-4">Add to Home Screen</span>.</span>
+                        </li>
+                        <li className="flex gap-3">
+                           <span className="text-primary font-bold">03.</span>
+                           <span>Select <span className="text-primary font-bold uppercase">Add</span> in the top right corner to finish deployment.</span>
+                        </li>
                       </ul>
                       <button 
                         onClick={() => setShowDownloadModal(false)}
-                        className="w-full py-2 bg-tertiary/20 text-tertiary font-mono text-[9px] uppercase tracking-widest rounded transition-all hover:bg-tertiary/30"
+                        className="w-full py-2 bg-tertiary/20 text-tertiary font-mono text-[9px] uppercase tracking-widest rounded transition-all hover:bg-tertiary/30 mt-2"
                       >
                         Acknowledge
                       </button>
